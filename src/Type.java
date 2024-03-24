@@ -6,10 +6,10 @@ public enum Type {
     ECHO_REPLY,//is active
     ECHO_REQUEST,//is activw
     REDIRECT,//send to router in the case it didnt manage
-    DCHP_REQUEST,
+    DHCP_REQUEST,//
+    DHCP_RELEASE,//NO LONGER NEEDS IP
     PARAMETER_PROBLEM,//invalid header field
-    TIME_EXCEEDED,//time to live field hit 0 discard packet
     ARP_REPLY,
-    ARP_REQUEST
+    ARP_REQUEST, ERROR
     
 }

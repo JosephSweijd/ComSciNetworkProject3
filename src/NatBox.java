@@ -3,15 +3,24 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.*;
+import java.util.Map.Entry;
 
+/**
+ * Creates a Server that acts as Internet and makes use of NAT to communicate
+ * devices within a private network or across the internet
+ */
 public class NatBox {
     private static ServerSocket serverSocket = null;
     static HashMap<String, natBoxThread> clients = new HashMap<String, natBoxThread>();
-    String natMac;// 2A:85:1A:89:C3:E1(12-bit)
-    String natIp;// 5.126.129.96
+    static String natMac;
+    static String natIp;
     static ArrayList<String> publicPool = new ArrayList<>();
-    static HashMap<String, String> natTable = new HashMap<String, String>();
+    static HashMap<String, String> natTable = new HashMap<>();
 
+    /**
+     * @param port
+     * @throws IOException
+     */
     public NatBox(int port) throws IOException {
         serverSocket = new ServerSocket(port);// start server
         System.out.println("Server started");
@@ -38,12 +47,20 @@ public class NatBox {
 
     }
 
+    /**
+     * Creates a pool of public addresses
+     */
     private void createPool() {
         for (int i = 0; i < 5; i++) {
             publicPool.add("192.168.1." + i);
         }
     }
 
+    /**
+     * gets public address from pool
+     * 
+     * @return public ip address
+     */
     public static String pop() {
         if (publicPool.isEmpty())
             return null;
@@ -52,12 +69,21 @@ public class NatBox {
         return ip;
     }
 
+    /**
+     * add ip address to the pool
+     * 
+     * @param ip - public address
+     */
     public static void push(String ip) {
         publicPool.add(ip);
+        natTable.remove(ip);
 
     }
 
-    public HashMap<String, String> arp() {
+    /**
+     * @return - natbox header with mac and ip address
+     */
+    public static HashMap<String, String> arp() {
         HashMap<String, String> natHeader = new HashMap<String, String>();
         natHeader.put("Mac", natMac);
         natHeader.put("IP", natIp);
@@ -101,13 +127,32 @@ public class NatBox {
     }
 
     public static synchronized void removeClient(String clientIP) {
-        natTable.remove(clientIP);// case disconnecte while connected
+        push(clientIP);// case disconnecte while connected
         clients.remove(clientIP);
     }
 
-    public static void returnToPool(String sourceIP) {
-        push(natTable.get(sourceIP));
-        natTable.remove(sourceIP);
-    }
-}
+    public static void send(Paquet p) throws IOException {
 
+        String ip = p.getdIP();
+        natBoxThread link = clients.get(ip);
+        boolean connected = link.isConnected();
+        if (connected) {
+            link.sendPaquet(p);
+        }
+    }
+
+    public static String getIpFromTable(String publicIp) {
+        for (Entry<String, String> entry : natTable.entrySet()) {
+
+            // if give value is equal to value from entry
+            // print the corresponding key
+            if (entry.getValue() == publicIp) {
+                return entry.getKey();
+
+            }
+        }
+        return null;
+
+    }
+
+}

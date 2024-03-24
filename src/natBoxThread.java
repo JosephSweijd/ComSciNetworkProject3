@@ -6,7 +6,6 @@ public class natBoxThread extends Thread {
     private boolean isActive = false;
     private ObjectInputStream in;
     private ObjectOutputStream out;
-    private boolean internalIP;
     private String clientIP;
 
     /*
@@ -33,9 +32,9 @@ public class natBoxThread extends Thread {
     }
 
     /*
-     * Sends paquest to the (network)destination IP
+     * Sends paquet to the client
      */
-    public void sendMessage(Paquet p) throws IOException {
+    public void sendPaquet(Paquet p) throws IOException {
 
         out.writeObject(p);
         out.flush();
@@ -58,17 +57,27 @@ public class natBoxThread extends Thread {
      * @param ip - private IP address to be mapped to public
      * @return paquest to notify if an ip was assigned
      */
-    public Paquet dhcp(String ip) {
-        if (internalIP) {
+    public void dhcp(Paquet p) {
+        String ip = p.getsIP();
+        boolean internal = isInternal(ip);
+        String sIP = p.getdIP();
+        Paquet newP = null;
+        if (internal) {
             String publicIP = NatBox.pop();
             if (publicIP != null) {
                 NatBox.addEntry(ip, publicIP);
-            } else {
-                // no public address available
+                newP = new Paquet(sIP, ip, Type.DHCP_REPLY, publicIP);
+
             }
 
         }
-        return new Paquet();
+        newP = new Paquet(sIP, ip, Type.ERROR, "No ip available");
+        try {
+            sendPaquet(newP);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -89,7 +98,6 @@ public class natBoxThread extends Thread {
         in.close();
         out.close();
     }
-   
 
     /*
      * Listens for new Paquet and handles different types of paquest
@@ -97,43 +105,31 @@ public class natBoxThread extends Thread {
     @Override
     public void run() {
         while (isActive) {
-            Type pType = Type.ECHO_REPLY;
+            Type pType = null;
             Paquet p = null;
             if (!clientSocket.isClosed()) {
                 p = getPaquet();
                 pType = p.getType();
+                clientIP = p.getsIP();
             }
             // assumes message is never null
             // how to handle different type of messages
             switch (pType) {
-                case ARP_REPLY:
 
+                case DHCP_REQUEST:
+                    dhcp(p);
+                    break;
+                case DHCP_RELEASE:
+                    NatBox.push(clientIP);
                     break;
 
-                case DCHP_REQUEST:
-                    internalIP = p.getData();
-                    dhcp(p.getSourceIP());
+                case ARP_REQUEST:
+                    arp(p);
                     break;
-                case TIME_EXCEEDED:
-                    NatBox.returnToPool(p.getSourceIP());
+                case ECHO_REQUEST:
+                    packetForwarding(p);
                     break;
-                case REDIRECT:
 
-                    break;
-                case PARAMETER_PROBLEM:
-
-                    break;
-                case ARP_REQUEST: 
-                    break;
-                case ECHO_REQUEST: 
-                    break;
-                case DESTINATION_UNREACHABLE: 
-                    break;
-                case DHCP_REPLY:
-                    break;
-                case ECHO_REPLY:
-
-                    break;
                 default:
                     break;
 
@@ -142,10 +138,79 @@ public class natBoxThread extends Thread {
 
     }
 
+    private void arp(Paquet p) {
+        String ip = p.getsIP();
+        String natIp = NatBox.arp().get("IP");
+        String natMac = NatBox.arp().get("MAC");
+        Paquet newP = new Paquet(natIp, ip, Type.ARP_REPLY, natIp + "|" + natMac);
+        try {
+            sendPaquet(newP);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
+
     private Paquet getPaquet() {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getPaquet'");
     }
 
- 
+    private boolean isInternal(String ip) {
+        // private access list is 10.1.0.x
+        if (ip.startsWith("10.1.0.")) {
+            return true;
+        }
+        return false;
+    }
+
+    private void packetForwarding(Paquet p) {
+        boolean sInternal = isInternal(p.getsIP());
+        boolean dInternal = isInternal(p.getdIP());
+        if (sInternal) {
+            if (dInternal) {
+                // internal > internal
+                try {
+                    NatBox.send(p);
+                } catch (IOException e) {
+                    // error while sending a paquet
+                    e.printStackTrace();
+                }
+            } else {
+                // internal to external (this assumes clients do dhcp during packet forwading)
+                dhcp(p);
+                Paquet newP = getPaquet();
+                if (newP.getType() == Type.DHCP_REPLY) {
+                    byte[] publicIp = newP.getPayload();
+                    p.changeSource(publicIp);
+                    try {
+                        sendPaquet(p);
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                } else {
+                    // packet dropped
+                }
+
+            }
+        } else {
+            String dPublic = p.getdIP();
+            if (dPublic.startsWith("192.168.1.")) {
+                String dPrivate = NatBox.getIpFromTable(dPublic);
+                if (dPrivate == null) {
+                    // drop packet ip not assigned
+                }
+            } else {
+                // drop packet
+            }
+
+        }
+    }
+
+    // NAT-box status reporting 2
+    // Packets replied to from clients 2
+    // Internal/External 4
+    // receiving messages
+    // Connections/disconnections
 }

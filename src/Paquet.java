@@ -1,45 +1,36 @@
 
 public class Paquet {
+    private String sIP;
+
+    private Type type;
+    private String dIP;
+    private byte[] payload;
+
+    public byte[] getPayload() {
+        return payload;
+    }
+
+    public Paquet(String sIP, String dIP, Type type, String data) {
+        this.sIP = sIP;
+        this.dIP = dIP;
+        this.type = type;
+        payload = data.getBytes();
+    }
+
+    public void changeSource(byte[] sIP) {
+        this.sIP = sIP.toString();
+    }
 
     public Type getType() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getType'");
+        return type;
     }
 
-    public String getSourceIP() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getSourceIP'");
+    public String getsIP() {
+        return sIP;
     }
 
-    public String getDestIP() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getDestIP'");
-    }
-
-    public String getContent() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getContent'");
-    }
-
-    public String getReceiver() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getReceiver'");
-    }
-    public String getHeader() {
-
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getReceiver'");
-    }
-    public String getPayload() {
-        //576 bytes
-        //variable length
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getReceiver'");
-    }
-
-    public boolean getData() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getData'");
+    public String getdIP() {
+        return dIP;
     }
 
 }
