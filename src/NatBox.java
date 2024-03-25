@@ -133,7 +133,7 @@ public class NatBox {
 
     public static void send(Paquet p) throws IOException {
 
-        String ip = p.getdIP();
+        String ip = p.getDestIP();
         natBoxThread link = clients.get(ip);
         boolean connected = link.isConnected();
         if (connected) {

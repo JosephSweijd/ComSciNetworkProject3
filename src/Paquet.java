@@ -1,54 +1,61 @@
 
 public class Paquet {
-    // Vars
-    Type type;
-    String sourceIP;
-    String DestIP;
-    String Header;
-    String Payload;
+    private Type type;
+    private String sourceIP;
+    private String destIP;
+    private String Payload;
+    // ethernet
+    private String sourceMac;
+    private String destMac;
 
-    public Paquet(Type type, String sourceIP, String DestIP, String Header,
-            String Payload, boolean Data) {
+    public Paquet(String sourceIP,String destIP, Type type, String Payload) {
         this.type = type;
         this.sourceIP = sourceIP;
-        this.DestIP = DestIP;
+        this.destIP = destIP;
         this.Payload = Payload;
-
     }
 
     public Type getType() {
-        // TODO Auto-generated method stub
+ 
         return type;
-        // throw new UnsupportedOperationException("Unimplemented method 'getType'");
     }
 
     public String getSourceIP() {
         return sourceIP;
-        // TODO Auto-generated method stub
-        // throw new UnsupportedOperationException("Unimplemented method
-        // 'getSourceIP'");
+     
     }
 
     public String getDestIP() {
-        return DestIP;
-        // TODO Auto-generated method stub
-        // throw new UnsupportedOperationException("Unimplemented method 'getDestIP'");
-    }
-
-    public String getHeader() {
-        return Header;
-        // TODO Auto-generated method stub
-        // throw new UnsupportedOperationException("Unimplemented method
-        // 'getReceiver'");
+        return destIP;
+  
     }
 
     public String getPayload() {
-        // 576 bytes
-        // variable length
-        // TODO Auto-generated method stub
         return Payload;
-        // throw new UnsupportedOperationException("Unimplemented method
-        // 'getReceiver'");
+    }
+
+    public void setType(Type type) {
+        this.type = type;
+    }
+
+    public void setSourceIP(String sourceIP) {
+        this.sourceIP = sourceIP;
+    }
+
+    public void setDestIP(String destIP) {
+        this.destIP = destIP;
+    }
+
+    public void setPayload(String payload) {
+        Payload = payload;
+    }
+
+    public void setSourceMac(String sourceMac) {
+        this.sourceMac = sourceMac;
+    }
+
+    public void setDestMac(String destMac) {
+        this.destMac = destMac;
     }
 
 }
