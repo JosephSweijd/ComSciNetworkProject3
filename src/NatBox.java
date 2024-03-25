@@ -13,7 +13,7 @@ public class NatBox {
     private static ServerSocket serverSocket = null;
     static HashMap<String, natBoxThread> clients = new HashMap<String, natBoxThread>();
     static String natMac;
-    static String natIp ;
+    static String natIp;
     static ArrayList<String> publicPool = new ArrayList<>();
     static HashMap<String, String> natTable = new HashMap<>();
 
@@ -25,9 +25,15 @@ public class NatBox {
         serverSocket = new ServerSocket(port);// start server
         System.out.println("Server started");
         natIp = "25.31.79.190";
-        System.out.println("NAT IP Address: " + natIp );//??
+        System.out.println("NAT IP Address: " + natIp);// ??
         String randomMacAddress = generateRandomMacAddress();
         System.out.println("NAT Mac Address: " + randomMacAddress);
+        Socket natSocket = new Socket(natIp, 5002);
+        natBoxThread natThread = new natBoxThread(natSocket);
+        natThread.start();
+        clients.put(natIp, natThread);
+       
+        
         createPool();
         while (true) {
             try {
@@ -101,8 +107,6 @@ public class NatBox {
         return mac.toString().toUpperCase();
     }
 
-
-
     public static void main(String[] args) throws IOException {
         try {// starts server locally
             new NatBox(5002);
@@ -122,8 +126,9 @@ public class NatBox {
     }
 
     public static synchronized void addClient(String clientIP, natBoxThread thread) {
-        clients.put(clientIP,thread);
+        clients.put(clientIP, thread);
     }
+
     public static void send(Paquet p) throws IOException {
 
         String ip = p.getDestIP();

@@ -110,8 +110,8 @@ public class natBoxThread extends Thread {
                 pType = p.getType();
                 clientIP = p.getSourceIP();
             }
-            // assumes message is never null
-            // how to handle different type of messages
+        
+            // how to handle different type of paquets
             switch (pType) {
 
                 case DHCP_REQUEST:
@@ -147,7 +147,7 @@ public class natBoxThread extends Thread {
         p.setDestIP(ip);
         p.setType(Type.ARP_REPLY);
         try {
-            sendPaquet(p);
+            NatBox.send(p);
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -192,7 +192,7 @@ public class natBoxThread extends Thread {
                     rPaquet.setDestIP(NatBox.natIp);
                     rPaquet.setType(Type.DHCP_REQUEST);
                     try {
-                        sendPaquet(rPaquet);
+                        NatBox.send(rPaquet);
                     } catch (IOException e) {
                         // TODO Auto-generated catch block
                         e.printStackTrace();
@@ -245,8 +245,4 @@ public class natBoxThread extends Thread {
         }
     }
 
-    // NAT-box status reporting 2
-    // Packets replied to from clients 2
-    // Internal/External 4
-    // Connections/disconnections
 }
