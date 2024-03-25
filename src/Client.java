@@ -32,8 +32,17 @@ public class Client {
         String mode = args[0];
         MAC = generateRandomMacAddress();
         if (mode == "external") {
-            IP = generateRandomIpAddress();
+            IP = generateRandomIpAddress(false);
+            try {
+                socket = new Socket(args[1], 5002);
+                in = new ObjectInputStream(socket.getInputStream());
+                out = new ObjectOutputStream(socket.getOutputStream());
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
         } else if (mode == "internal") {
+            IP = generateRandomIpAddress(true);
             try {
                 // Open Conneciton
                 socket = new Socket("localhost", 5002);
