@@ -68,7 +68,7 @@ public class natBoxThread extends Thread {
             }
 
         }
-        return new Paquet();
+        return new Paquet(null, ip, ip, ip, ip, ip, ip, null);
     }
 
     /**
