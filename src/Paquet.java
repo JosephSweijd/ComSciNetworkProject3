@@ -1,36 +1,54 @@
 
 public class Paquet {
-    private String sIP;
+    // Vars
+    Type type;
+    String sourceIP;
+    String DestIP;
+    String Header;
+    String Payload;
 
-    private Type type;
-    private String dIP;
-    private byte[] payload;
-
-    public byte[] getPayload() {
-        return payload;
-    }
-
-    public Paquet(String sIP, String dIP, Type type, String data) {
-        this.sIP = sIP;
-        this.dIP = dIP;
+    public Paquet(Type type, String sourceIP, String DestIP, String Header,
+            String Payload, boolean Data) {
         this.type = type;
-        payload = data.getBytes();
-    }
+        this.sourceIP = sourceIP;
+        this.DestIP = DestIP;
+        this.Payload = Payload;
 
-    public void changeSource(byte[] sIP) {
-        this.sIP = sIP.toString();
     }
 
     public Type getType() {
+        // TODO Auto-generated method stub
         return type;
+        // throw new UnsupportedOperationException("Unimplemented method 'getType'");
     }
 
-    public String getsIP() {
-        return sIP;
+    public String getSourceIP() {
+        return sourceIP;
+        // TODO Auto-generated method stub
+        // throw new UnsupportedOperationException("Unimplemented method
+        // 'getSourceIP'");
     }
 
-    public String getdIP() {
-        return dIP;
+    public String getDestIP() {
+        return DestIP;
+        // TODO Auto-generated method stub
+        // throw new UnsupportedOperationException("Unimplemented method 'getDestIP'");
+    }
+
+    public String getHeader() {
+        return Header;
+        // TODO Auto-generated method stub
+        // throw new UnsupportedOperationException("Unimplemented method
+        // 'getReceiver'");
+    }
+
+    public String getPayload() {
+        // 576 bytes
+        // variable length
+        // TODO Auto-generated method stub
+        return Payload;
+        // throw new UnsupportedOperationException("Unimplemented method
+        // 'getReceiver'");
     }
 
 }
