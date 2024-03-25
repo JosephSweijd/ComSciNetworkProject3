@@ -13,7 +13,7 @@ public class NatBox {
     private static ServerSocket serverSocket = null;
     static HashMap<String, natBoxThread> clients = new HashMap<String, natBoxThread>();
     static String natMac;
-    static String natIp;
+    static String natIp ;
     static ArrayList<String> publicPool = new ArrayList<>();
     static HashMap<String, String> natTable = new HashMap<>();
 
@@ -24,8 +24,8 @@ public class NatBox {
     public NatBox(int port) throws IOException {
         serverSocket = new ServerSocket(port);// start server
         System.out.println("Server started");
-        String randomIpAddress = generateRandomIpAddress();
-        System.out.println("NAT IP Address: " + randomIpAddress);
+        natIp = "25.31.79.190";
+        System.out.println("NAT IP Address: " + natIp );//??
         String randomMacAddress = generateRandomMacAddress();
         System.out.println("NAT Mac Address: " + randomMacAddress);
         createPool();
@@ -83,11 +83,8 @@ public class NatBox {
     /**
      * @return - natbox header with mac and ip address
      */
-    public static HashMap<String, String> arp() {
-        HashMap<String, String> natHeader = new HashMap<String, String>();
-        natHeader.put("Mac", natMac);
-        natHeader.put("IP", natIp);
-        return natHeader;
+    public static String arp() {
+        return natMac;
     }
 
     // copied from https://iqcode.com/code/java/random-mac-address-generator-java
@@ -104,14 +101,7 @@ public class NatBox {
         return mac.toString().toUpperCase();
     }
 
-    // copied from internet still need to check if doesnt violate any rules
-    private static String generateRandomIpAddress() {
-        Random random = new Random();
-        return random.nextInt(256) + "." +
-                random.nextInt(256) + "." +
-                random.nextInt(256) + "." +
-                random.nextInt(256);
-    }
+
 
     public static void main(String[] args) throws IOException {
         try {// starts server locally
@@ -131,6 +121,9 @@ public class NatBox {
         clients.remove(clientIP);
     }
 
+    public static synchronized void addClient(String clientIP, natBoxThread thread) {
+        clients.put(clientIP,thread);
+    }
     public static void send(Paquet p) throws IOException {
 
         String ip = p.getDestIP();
@@ -141,7 +134,7 @@ public class NatBox {
         }
     }
 
-    public static String getIpFromTable(String publicIp) {
+    public static String getPrivateIP(String publicIp) {
         for (Entry<String, String> entry : natTable.entrySet()) {
 
             // if give value is equal to value from entry
@@ -152,6 +145,11 @@ public class NatBox {
             }
         }
         return null;
+
+    }
+
+    public static String getPublicIp(String privateIp) {
+        return natTable.get(privateIp);
 
     }
 

@@ -58,4 +58,10 @@ public class Paquet {
         this.destMac = destMac;
     }
 
+    @Override
+    public String toString() {
+        return "Paquet [type=" + type + ", sourceIP=" + sourceIP + ", destIP=" + destIP + ", Payload=" + Payload
+                + ", sourceMac=" + sourceMac + ", destMac=" + destMac + "]";
+    }
+    
 }

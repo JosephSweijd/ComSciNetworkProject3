@@ -42,8 +42,7 @@ public class natBoxThread extends Thread {
     }
 
     public boolean isConnected() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'isConnected'");
+        return isActive;
     }
 
     public void logout() {
@@ -69,11 +68,11 @@ public class natBoxThread extends Thread {
                 newP = new Paquet(sIP, ip, Type.DHCP_REPLY, publicIP);
 
             }
-
+            NatBox.addClient(ip, this);
         }
         newP = new Paquet(sIP, ip, Type.ERROR, "No ip available");
         try {
-            sendPaquet(newP);
+            NatBox.send(newP);
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -87,14 +86,8 @@ public class natBoxThread extends Thread {
      * @throws IOException
      */
     public void disconnect() throws IOException {
-
         isActive = false;
         NatBox.removeClient(clientIP);
-
-        // broadcast message of disconnection to users?
-
-        // print to console then closes streams and client socket
-
         in.close();
         out.close();
     }
@@ -108,7 +101,12 @@ public class natBoxThread extends Thread {
             Type pType = null;
             Paquet p = null;
             if (!clientSocket.isClosed()) {
-                p = getPaquet();
+                try {
+                    p = getPaquet();
+                } catch (ClassNotFoundException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
                 pType = p.getType();
                 clientIP = p.getSourceIP();
             }
@@ -127,7 +125,12 @@ public class natBoxThread extends Thread {
                     arp(p);
                     break;
                 case ECHO_REQUEST:
-                    packetForwarding(p);
+                    try {
+                        packetForwarding(p);
+                    } catch (ClassNotFoundException | IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
                     break;
 
                 default:
@@ -140,21 +143,26 @@ public class natBoxThread extends Thread {
 
     private void arp(Paquet p) {
         String ip = p.getSourceIP();
-        String natIp = NatBox.arp().get("IP");
-        String natMac = NatBox.arp().get("MAC");
-        Paquet newP = new Paquet(natIp, ip, Type.ARP_REPLY, natIp + "|" + natMac);
+        p.setSourceIP(p.getDestIP());
+        p.setDestIP(ip);
+        p.setType(Type.ARP_REPLY);
         try {
-            sendPaquet(newP);
+            sendPaquet(p);
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }
 
-    private Paquet getPaquet() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getPaquet'");
+    private Paquet getPaquet() throws ClassNotFoundException {
+         //get Paquet from client
+         try {
+            return (Paquet) in.readObject();
+        }catch (IOException e){
+            return null;
+        }
     }
+    
 
     private boolean isInternal(String ip) {
         // private access list is 10.1.0.x
@@ -164,7 +172,7 @@ public class natBoxThread extends Thread {
         return false;
     }
 
-    private void packetForwarding(Paquet p) {
+    private void packetForwarding(Paquet p) throws ClassNotFoundException, IOException {
         boolean sInternal = isInternal(p.getSourceIP());
         boolean dInternal = isInternal(p.getDestIP());
         if (sInternal) {
@@ -177,32 +185,61 @@ public class natBoxThread extends Thread {
                     e.printStackTrace();
                 }
             } else {
-                // internal to external (this assumes clients do dhcp during packet forwading)
-                dhcp(p);
-                Paquet newP = getPaquet();
-                if (newP.getType() == Type.DHCP_REPLY) {
-                    String publicIp = newP.getPayload();
-                    p.setSourceIP(publicIp);
+                // internal to external
+                String publicIp = NatBox.getPublicIp(p.getSourceIP());
+                if (publicIp == null) {
+                    Paquet rPaquet = p;
+                    rPaquet.setDestIP(NatBox.natIp);
+                    rPaquet.setType(Type.DHCP_REQUEST);
                     try {
-                        sendPaquet(p);
+                        sendPaquet(rPaquet);
                     } catch (IOException e) {
                         // TODO Auto-generated catch block
                         e.printStackTrace();
                     }
+                    Paquet inPaquet = getPaquet();
+                    if (inPaquet.getType() == Type.DHCP_REPLY) {
+                        p.setSourceIP(inPaquet.getPayload());
+                        try {
+                            NatBox.send(p);
+                        } catch (IOException e) {
+                            // TODO Auto-generated catch block
+                            e.printStackTrace();
+                        }
+                    } else {
+                        System.out.println("\n *Paquet dropped due to no available public adress*");
+                        p.setType(Type.ERROR);
+                        System.out.println(p.toString());
+                    }
+
                 } else {
-                    // packet dropped
+                    try {
+                        NatBox.send(p);
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
                 }
 
             }
         } else {
             String dPublic = p.getDestIP();
             if (dPublic.startsWith("192.168.1.")) {
-                String dPrivate = NatBox.getIpFromTable(dPublic);
+                String dPrivate = NatBox.getPrivateIP(dPublic);
                 if (dPrivate == null) {
-                    // drop packet ip not assigned
+                    // drop Paquet ip not assigned
+                    System.out.println("\n *Paquet dropped due to public address not being assigned*");
+                    
+                    System.out.println(p.toString());
+                } else {
+                    p.setDestIP(dPrivate);
+                    p.setType(Type.ECHO_REPLY);
+                    NatBox.send(p);
                 }
             } else {
-                // drop packet
+                // drop Paquet
+                System.out.println("\n *Paquet dropped External-> External*");
+                System.out.println(p.toString());
             }
 
         }
@@ -211,6 +248,5 @@ public class natBoxThread extends Thread {
     // NAT-box status reporting 2
     // Packets replied to from clients 2
     // Internal/External 4
-    // receiving messages
     // Connections/disconnections
 }
