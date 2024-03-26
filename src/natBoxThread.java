@@ -1,4 +1,5 @@
 import java.net.*;
+import java.time.LocalTime;
 import java.io.*;
 
 public class natBoxThread extends Thread {
@@ -7,6 +8,8 @@ public class natBoxThread extends Thread {
     private ObjectInputStream in;
     private ObjectOutputStream out;
     private String clientIP;
+    private LocalTime lastUsed;
+    private boolean internal;
 
     /*
      * Initializes the natBoxThread with client's socket and sets thread as active
@@ -15,6 +18,7 @@ public class natBoxThread extends Thread {
         this.clientSocket = clientSocket;
         setStreams();
         isActive = true;
+        lastUsed = LocalTime.now();
 
     }
 
@@ -34,10 +38,21 @@ public class natBoxThread extends Thread {
     /*
      * Sends paquet to the client
      */
-    public void sendPaquet(Paquet p) throws IOException {
-
+    public boolean sendPaquet(Paquet p) throws IOException {
+        Paquet newP = null;
         out.writeObject(p);
         out.flush();
+        try {
+            newP = getPaquet();
+            System.out.println(newP.toString());
+            if (newP.getType() == Type.ACK){
+                return true;
+            }
+        } catch (ClassNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return false;
 
     }
 
@@ -58,7 +73,7 @@ public class natBoxThread extends Thread {
      */
     public void dhcp(Paquet p) {
         String ip = p.getSourceIP();
-        boolean internal = isInternal(ip);
+        internal = isInternal(ip);
         String sIP = p.getDestIP();
         Paquet newP = null;
         if (internal) {
@@ -70,8 +85,10 @@ public class natBoxThread extends Thread {
             } else {
                 newP = new Paquet(sIP, ip, Type.ERROR, "No ip available");
             }
+            clientIP = privateIP;
             NatBox.addClient(privateIP, this);
         } else {
+            clientIP = ip;
             NatBox.addClient(ip, this);
             newP = new Paquet(sIP, ip, Type.DHCP_REPLY, "connected");
         }
@@ -83,6 +100,10 @@ public class natBoxThread extends Thread {
         }
     }
 
+    public boolean isInternal() {
+        return internal;
+    }
+
     /**
      * IP address released into the pool of available IP when an internal client
      * disconnects.
@@ -90,10 +111,17 @@ public class natBoxThread extends Thread {
      * @throws IOException
      */
     public void disconnect() throws IOException {
+        Paquet newP = new Paquet(NatBox.natIp, clientIP, Type.DISCONNECT, "disconnected");
+        NatBox.send(newP);
         isActive = false;
-        NatBox.removeClient(clientIP);
+        NatBox.removeClient(clientIP, internal);
         in.close();
         out.close();
+        clientSocket.close();
+    }
+
+    public LocalTime getLastUsed() {
+        return lastUsed;
     }
 
     /*
@@ -108,38 +136,72 @@ public class natBoxThread extends Thread {
                 try {
                     p = getPaquet();
                 } catch (ClassNotFoundException e) {
+                    // AD more later
+                    break;
                     // TODO Auto-generated catch block
-                    e.printStackTrace();
+                    // e.printStackTrace();
                 }
-                pType = p.getType();
-                clientIP = p.getSourceIP();
-            }
+                if (p != null) {
 
-            // how to handle different type of paquets
-            switch (pType) {
+                    pType = p.getType();
+                    clientIP = p.getSourceIP();
+                    lastUsed = LocalTime.now();
+                    // how to handle different type of paquets
+                    switch (pType) {
 
-                case DHCP_REQUEST:
-                    dhcp(p);
-                    break;
-                case DHCP_RELEASE:
-                    NatBox.push(clientIP);
-                    break;
+                        case DHCP_REQUEST:
+                            dhcp(p);
+                            break;
+                        case DHCP_RELEASE:
+                            // update later
+                            NatBox.push(clientIP);
+                            break;
 
-                case ARP_REQUEST:
-                    arp(p);
-                    break;
-                case ECHO_REQUEST:
-                    try {
-                        packetForwarding(p);
-                    } catch (ClassNotFoundException | IOException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
+                        case ARP_REQUEST:
+                            arp(p);
+                            break;
+
+                        case ECHO_REQUEST:
+                            try {
+                                packetForwarding(p);
+                            } catch (ClassNotFoundException | IOException e) {
+                                // TODO Auto-generated catch block
+                                e.printStackTrace();
+                            }
+                            break;
+
+                        case ECHO_REPLY:
+                            try {
+                                packetForwarding(p);
+                            } catch (ClassNotFoundException | IOException e) {
+                                // TODO Auto-generated catch block
+                                e.printStackTrace();
+                            }
+                            break;
+
+                        case TCP:
+                            try {
+                                packetForwarding(p);
+                            } catch (ClassNotFoundException | IOException e) {
+                                // TODO Auto-generated catch block
+                                e.printStackTrace();
+                            }
+                            break;
+
+                        case DISCONNECT:
+                            try {
+                                disconnect();
+                            } catch (IOException e) {
+                                // TODO Auto-generated catch block
+                                e.printStackTrace();
+                            }
+                            break;
+
+                        default:
+                            break;
+
                     }
-                    break;
-
-                default:
-                    break;
-
+                }
             }
         }
 
@@ -159,10 +221,12 @@ public class natBoxThread extends Thread {
     }
 
     private Paquet getPaquet() throws ClassNotFoundException {
+        System.out.println("Flag 1");
         // get Paquet from client
         try {
             return (Paquet) in.readObject();
         } catch (IOException e) {
+            e.printStackTrace();
             return null;
         }
     }
@@ -178,11 +242,12 @@ public class natBoxThread extends Thread {
     private void packetForwarding(Paquet p) throws ClassNotFoundException, IOException {
         boolean sInternal = isInternal(p.getSourceIP());
         boolean dInternal = isInternal(p.getDestIP());
+        boolean sent = false;
         if (sInternal) {
             if (dInternal) {
                 // internal > internal
                 try {
-                    NatBox.send(p);
+                   sent =  NatBox.send(p);
                 } catch (IOException e) {
                     // error while sending a paquet
                     e.printStackTrace();
@@ -195,7 +260,7 @@ public class natBoxThread extends Thread {
                     rPaquet.setDestIP(NatBox.natIp);
                     rPaquet.setType(Type.DHCP_REQUEST);
                     try {
-                        NatBox.send(rPaquet);
+                        sent =  NatBox.send(rPaquet);
                     } catch (IOException e) {
                         // TODO Auto-generated catch block
                         e.printStackTrace();
@@ -204,7 +269,7 @@ public class natBoxThread extends Thread {
                     if (inPaquet.getType() == Type.DHCP_REPLY) {
                         p.setSourceIP(inPaquet.getPayload());
                         try {
-                            NatBox.send(p);
+                            sent = NatBox.send(p);
                         } catch (IOException e) {
                             // TODO Auto-generated catch block
                             e.printStackTrace();
@@ -218,7 +283,7 @@ public class natBoxThread extends Thread {
                 } else {
                     p.setSourceIP(publicIp);
                     try {
-                        NatBox.send(p);
+                        sent = NatBox.send(p);
                     } catch (IOException e) {
                         // TODO Auto-generated catch block
                         e.printStackTrace();
@@ -239,7 +304,7 @@ public class natBoxThread extends Thread {
                 } else {
                     p.setDestIP(dPrivate);
                     p.setType(Type.ECHO_REPLY);
-                    NatBox.send(p);
+                    sent = NatBox.send(p);
                 }
             } else {
                 // drop Paquet
@@ -247,6 +312,11 @@ public class natBoxThread extends Thread {
                 System.out.println(p.toString());
             }
 
+        }
+        if (!sent) {
+            System.out.println("\n *Paquet Failed to send, sending ICMP ERROR MSG*");
+            Paquet newP = new Paquet(NatBox.natIp, clientIP, Type.ERROR, clientIP);
+            NatBox.send(newP);
         }
     }
 

@@ -21,6 +21,7 @@ public class Client {
     static Socket socket;
     static ObjectInputStream in;
     static ObjectOutputStream out;
+    static boolean connected;
 
     // Main
     public static void main(String[] args) {
@@ -42,8 +43,8 @@ public class Client {
                 socket = new Socket("localhost", 5002);
                 out = new ObjectOutputStream(socket.getOutputStream());
                 in = new ObjectInputStream(socket.getInputStream());
-                p = new Paquet(IP,null,Type.DHCP_REQUEST,null);
-                out.writeObject(p);
+                p = new Paquet(IP, null, Type.DHCP_REQUEST, null);
+                send(p);
                 p = receive();
             } catch (IOException e) {
                 // TODO Auto-generated catch block
@@ -55,19 +56,19 @@ public class Client {
                 // Open Conneciton
                 socket = new Socket("localhost", 5002);
                 out = new ObjectOutputStream(socket.getOutputStream());
-                in = new ObjectInputStream(socket.getInputStream());                
-                p = new Paquet(IP,null,Type.DHCP_REQUEST,null);
-                out.writeObject(p);
+                in = new ObjectInputStream(socket.getInputStream());
+                p = new Paquet(IP, null, Type.DHCP_REQUEST, null);
+                send(p);
                 p = receive();
                 IP = p.getPayload();
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
-            if (IP.equals("No ip available")){
+            if (IP.equals("No ip available")) {
                 System.out.println(IP);
-            }else{
-            System.out.println("IP adress set to: " + IP);
+            } else {
+                System.out.println("IP adress set to: " + IP);
             }
         } else {
             System.out.println("Incorrect usage: args 1 must be either \"internal\" or \"external\"");
@@ -75,26 +76,37 @@ public class Client {
         }
         InnerClient iClient = new InnerClient(socket, in, out);
         iClient.start();
-        while (true) {
+        connected = true;
+        while (connected) {
             try {
                 input = reader.readLine();
-                
-                if (input.startsWith("/a")) {
-                    destIP = input.substring(input.indexOf(" "),input.indexOf(" ",input.indexOf(" ")));
-                    msg = input.substring(input.indexOf(" ",input.indexOf(" ")));
-                    p = new Paquet(IP,null,Type.ARP_REQUEST,msg);
-                } else {
-                    destIP = input.substring(0,input.indexOf(" "));
-                    msg = input.substring(input.indexOf(" "));
-                    p = new Paquet(IP,destIP,Type.ECHO_REQUEST,msg);      
+                if (connected) {
+                    if (input.equals("disconnect")) {
+                        p = new Paquet(IP, null, Type.DISCONNECT, input);
+                        send(p);
+                        break;
+                    } else if (input.startsWith("echo")) {
+                        destIP = input.substring(5);
+                        p = new Paquet(IP, destIP, Type.ECHO_REQUEST, null);
+                        send(p);
+                    } else {
+                        destIP = input.substring(0, input.indexOf(" "));
+                        msg = input.substring(input.indexOf(" "));
+                        p = new Paquet(IP, destIP, Type.TCP, msg);
+                        send(p);
+                    }
+                    System.out.println(input);
                 }
-                out.writeObject(p);
-                System.out.println(input);
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
         }
+        System.out.println("Disconnected");
+    }
+
+    public static void setConnected(boolean var) {
+        connected = var;
     }
 
     // Paquet Reciver
@@ -102,20 +114,32 @@ public class Client {
         Paquet p;
         try {
             p = (Paquet) in.readObject();
-            if (p.getType() == Type.DHCP_REQUEST) {
-                out.writeObject(new Paquet(IP,null ,Type.DHCP_REPLY,null));
-            }
+            send(new Paquet(IP, null, Type.ACK, null));
             if (p.getType() == Type.ECHO_REQUEST) {
-                out.writeObject(new Paquet(IP,null ,Type.ECHO_REPLY,null));
-            }
-            if (p.getType() == Type.ARP_REQUEST) {
-                out.writeObject(new Paquet(IP,null ,Type.ARP_REPLY,null));
+                send(new Paquet(IP, p.getSourceIP(), Type.ECHO_REPLY, null));
             }
             return p;
-        } catch (ClassNotFoundException | IOException e) {
+        } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
             return null;
+        } catch (ClassNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            return null;
+
+        }
+    }
+
+    // Packet sender
+    public static void send(Paquet p) {
+        System.out.println(p.toString());
+        try {
+            out.writeObject(p);
+            out.flush();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
     }
 
@@ -163,9 +187,24 @@ class InnerClient extends Thread {
     @Override
     public void run() {
         while (true) {
-                p = Client.receive();
-                System.out.println(p.toString());
+            p = Client.receive();
+
+            System.out.println(p.toString());
+            if (p.getType() == Type.DISCONNECT) {
+                try {
+                    Client.setConnected(false);
+                    out.close();
+                    in.close();
+                    socket.close();
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+                break;
+            }
         }
+        System.out.println("Disconnected");
+
     }
 
 }

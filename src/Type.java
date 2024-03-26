@@ -9,6 +9,9 @@ public enum Type {
     DHCP_RELEASE,//NO LONGER NEEDS IP
     ARP_REPLY,
     ARP_REQUEST,
-    ERROR
+    ERROR,
+    DISCONNECT,
+    ACK,
+    TCP
     
 }

@@ -17,7 +17,6 @@ public class Paquet implements Serializable{
     }
 
     public Type getType() {
- 
         return type;
     }
 

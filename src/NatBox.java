@@ -2,8 +2,11 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.time.Duration;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Creates a Server that acts as Internet and makes use of NAT to communicate
@@ -41,6 +44,8 @@ public class NatBox {
 
         createPool();
         createPrivatePool();
+        Thread refresh = new ntRefresh(clients, 600);
+        refresh.start();
         while (true) {
             try {
                 Socket clientSocket = null;
@@ -104,9 +109,9 @@ public class NatBox {
      * @param ip - public address
      */
     public static void push(String ip) {
-        publicPool.add(ip);
+        privatePool.add(ip);
+        publicPool.add(natTable.get(ip));
         natTable.remove(ip);
-
     }
 
     /**
@@ -146,7 +151,7 @@ public class NatBox {
         natTable.put(ip, publicIP);
     }
 
-    public static synchronized void removeClient(String clientIP) {
+    public static synchronized void removeClient(String clientIP, boolean internal) {
         push(clientIP);// case disconnecte while connected
         clients.remove(clientIP);
     }
@@ -155,23 +160,22 @@ public class NatBox {
         clients.put(clientIP, thread);
     }
 
-    public static void send(Paquet p) throws IOException {
-
+    public static boolean send(Paquet p) throws IOException {
+        System.out.println(p.toString());
         String ip = p.getDestIP();
-        System.out.println("IP is :" + ip);
         natBoxThread link = clients.get(ip);
-        boolean connected = link.isConnected();
-        System.out.println("link is connected:" + connected);
-        if (connected) {
-            link.sendPaquet(p);
+        if (link != null) {
+            boolean connected = link.isConnected();
+            // System.out.println("link is connected:" + connected);
+            if (connected) {
+                return link.sendPaquet(p);
+            }
         }
+        return false;
     }
 
     public static String getPrivateIP(String publicIp) {
         for (Entry<String, String> entry : natTable.entrySet()) {
-            System.out.println(entry);
-            System.out.println(entry.getValue());
-            System.out.println(entry.getKey());
 
             // if give value is equal to value from entry
             // print the corresponding key
@@ -187,6 +191,41 @@ public class NatBox {
     public static String getPublicIp(String privateIp) {
         return natTable.get(privateIp);
 
+    }
+
+}
+
+class ntRefresh extends Thread {
+    static HashMap<String, natBoxThread> clients = null;
+    int timeout;
+
+    public ntRefresh(HashMap<String, natBoxThread> clients, int timeout) {
+        this.clients = clients;
+        this.timeout = timeout;
+    }
+
+    @Override
+    public void run() {
+        while (true) {
+            try {
+                TimeUnit.SECONDS.sleep(timeout);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            ;
+            for (Entry<String, natBoxThread> entry : clients.entrySet()) {
+                if (Duration.between(entry.getValue().getLastUsed(), LocalTime.now()).toSeconds() > timeout) {
+                    try {
+                        // System.out.println(clients.get(entry.getKey()));
+                        entry.getValue().disconnect();
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
     }
 
 }
