@@ -25,53 +25,71 @@ public class Client {
     // Main
     public static void main(String[] args) {
         // Var dec
+        if (args.length < 1) {
+            System.out.println("Incorrect usage: args 1 must be either \"internal\" or \"external\"");
+        }
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-        String msg;
+        String input, msg, destIP;
         Paquet p;
         // Initialise
         String mode = args[0];
+        System.out.println("Flag 4");
         MAC = generateRandomMacAddress();
-        if (mode == "external") {
+        if (mode.equals("external")) {
             IP = generateRandomIpAddress(false);
+            System.out.println("IP adress:" + IP);
             try {
-                socket = new Socket(args[1], 5002);
-                in = new ObjectInputStream(socket.getInputStream());
+                socket = new Socket("localhost", 5002);
                 out = new ObjectOutputStream(socket.getOutputStream());
+                in = new ObjectInputStream(socket.getInputStream());
+                p = new Paquet(IP,null,Type.DHCP_REQUEST,null);
+                out.writeObject(p);
+                p = receive();
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
-        } else if (mode == "internal") {
+        } else if (mode.equals("internal")) {
             IP = generateRandomIpAddress(true);
             try {
                 // Open Conneciton
                 socket = new Socket("localhost", 5002);
-                in = new ObjectInputStream(socket.getInputStream());
                 out = new ObjectOutputStream(socket.getOutputStream());
-                p = new Paquet(Type.DCHP_REQUEST, null, null, null, null, null, null, (Boolean) null);
+                in = new ObjectInputStream(socket.getInputStream());                
+                p = new Paquet(IP,null,Type.DHCP_REQUEST,null);
                 out.writeObject(p);
                 p = receive();
-                IP = p.getContent();
+                IP = p.getPayload();
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
+            }
+            if (IP.equals("No ip available")){
+                System.out.println(IP);
+            }else{
+            System.out.println("IP adress set to: " + IP);
             }
         } else {
             System.out.println("Incorrect usage: args 1 must be either \"internal\" or \"external\"");
             return;
         }
+        InnerClient iClient = new InnerClient(socket, in, out);
+        iClient.start();
         while (true) {
             try {
-                msg = reader.readLine();
-                if (msg.startsWith("/a")) {
-                    p = new Paquet(Type.ARP_REQUEST, IP, null, msg, null, null, null, (Boolean) null);
-                    out.writeObject(p);
+                input = reader.readLine();
+                
+                if (input.startsWith("/a")) {
+                    destIP = input.substring(input.indexOf(" "),input.indexOf(" ",input.indexOf(" ")));
+                    msg = input.substring(input.indexOf(" ",input.indexOf(" ")));
+                    p = new Paquet(IP,null,Type.ARP_REQUEST,msg);
+                } else {
+                    destIP = input.substring(0,input.indexOf(" "));
+                    msg = input.substring(input.indexOf(" "));
+                    p = new Paquet(IP,destIP,Type.ECHO_REQUEST,msg);      
                 }
-                if (msg.startsWith("/e")) {
-                    p = new Paquet(Type.ECHO_REQUEST, IP, null, msg, null, null, null, (Boolean) null);
-                    out.writeObject(p);
-                }
-                System.out.println(msg);
+                out.writeObject(p);
+                System.out.println(input);
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
@@ -80,18 +98,18 @@ public class Client {
     }
 
     // Paquet Reciver
-    private static Paquet receive() {
+    public static Paquet receive() {
         Paquet p;
         try {
             p = (Paquet) in.readObject();
-            if (p.getType() == Type.DCHP_REQUEST) {
-                out.writeObject(new Paquet(Type.DHCP_REPLY, null, null, null, null, null, null, (Boolean) null));
+            if (p.getType() == Type.DHCP_REQUEST) {
+                out.writeObject(new Paquet(IP,null ,Type.DHCP_REPLY,null));
             }
             if (p.getType() == Type.ECHO_REQUEST) {
-                out.writeObject(new Paquet(Type.ECHO_REPLY, null, null, null, null, null, null, (Boolean) null));
+                out.writeObject(new Paquet(IP,null ,Type.ECHO_REPLY,null));
             }
             if (p.getType() == Type.ARP_REQUEST) {
-                out.writeObject(new Paquet(Type.ARP_REPLY, null, null, null, null, null, null, (Boolean) null));
+                out.writeObject(new Paquet(IP,null ,Type.ARP_REPLY,null));
             }
             return p;
         } catch (ClassNotFoundException | IOException e) {
@@ -129,7 +147,7 @@ public class Client {
     }
 }
 
-class InnerClient implements Runnable {
+class InnerClient extends Thread {
 
     static Socket socket;
     static ObjectInputStream in;
@@ -145,12 +163,8 @@ class InnerClient implements Runnable {
     @Override
     public void run() {
         while (true) {
-            try {
-                p = (Paquet) in.readObject();
-            } catch (ClassNotFoundException | IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
+                p = Client.receive();
+                System.out.println(p.toString());
         }
     }
 

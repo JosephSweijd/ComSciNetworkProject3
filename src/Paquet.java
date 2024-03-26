@@ -1,5 +1,6 @@
+import java.io.Serializable;
 
-public class Paquet {
+public class Paquet implements Serializable{
     private Type type;
     private String sourceIP;
     private String destIP;

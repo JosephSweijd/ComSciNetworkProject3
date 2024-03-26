@@ -62,15 +62,19 @@ public class natBoxThread extends Thread {
         String sIP = p.getDestIP();
         Paquet newP = null;
         if (internal) {
-            String publicIP = NatBox.pop();
+            String publicIP = NatBox.pop(false);
+            String privateIP = NatBox.pop(true);
             if (publicIP != null) {
-                NatBox.addEntry(ip, publicIP);
-                newP = new Paquet(sIP, ip, Type.DHCP_REPLY, publicIP);
-
+                NatBox.addEntry(privateIP, publicIP);
+                newP = new Paquet(sIP, privateIP, Type.DHCP_REPLY, privateIP);
+            } else {
+                newP = new Paquet(sIP, ip, Type.ERROR, "No ip available");
             }
+            NatBox.addClient(privateIP, this);
+        } else {
             NatBox.addClient(ip, this);
+            newP = new Paquet(sIP, ip, Type.DHCP_REPLY, "connected");
         }
-        newP = new Paquet(sIP, ip, Type.ERROR, "No ip available");
         try {
             NatBox.send(newP);
         } catch (IOException e) {
@@ -110,7 +114,7 @@ public class natBoxThread extends Thread {
                 pType = p.getType();
                 clientIP = p.getSourceIP();
             }
-        
+
             // how to handle different type of paquets
             switch (pType) {
 
@@ -155,14 +159,13 @@ public class natBoxThread extends Thread {
     }
 
     private Paquet getPaquet() throws ClassNotFoundException {
-         //get Paquet from client
-         try {
+        // get Paquet from client
+        try {
             return (Paquet) in.readObject();
-        }catch (IOException e){
+        } catch (IOException e) {
             return null;
         }
     }
-    
 
     private boolean isInternal(String ip) {
         // private access list is 10.1.0.x
@@ -213,6 +216,7 @@ public class natBoxThread extends Thread {
                     }
 
                 } else {
+                    p.setSourceIP(publicIp);
                     try {
                         NatBox.send(p);
                     } catch (IOException e) {
@@ -226,10 +230,11 @@ public class natBoxThread extends Thread {
             String dPublic = p.getDestIP();
             if (dPublic.startsWith("192.168.1.")) {
                 String dPrivate = NatBox.getPrivateIP(dPublic);
+                System.out.println(NatBox.natTable);
                 if (dPrivate == null) {
                     // drop Paquet ip not assigned
                     System.out.println("\n *Paquet dropped due to public address not being assigned*");
-                    
+
                     System.out.println(p.toString());
                 } else {
                     p.setDestIP(dPrivate);
