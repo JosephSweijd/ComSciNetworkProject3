@@ -52,7 +52,7 @@ public class natBoxThread extends Thread {
             try {
                 newp = getPaquet();
                 if (newp.getType() == Type.ACK) {
-                    System.out.println("Acknoleged");
+                    // System.out.println("Acknoleged");
                     return true;
                 }
             } catch (ClassNotFoundException e) {
@@ -63,7 +63,7 @@ public class natBoxThread extends Thread {
         LocalTime sent = LocalTime.now();
         while (Duration.between(sent, LocalTime.now()).toSeconds() < timeout) {
             if (ack){
-                System.out.println("Acknoleged");
+                // System.out.println("Acknoleged");
                 return true;
             }
         }
@@ -251,8 +251,7 @@ public class natBoxThread extends Thread {
             Paquet p = (Paquet) in.readObject();
             return p;
         } catch (IOException e) {
-        System.out.println("Flag 1");
-        e.printStackTrace();
+          e.printStackTrace();
             return null;
         }
     }
@@ -302,7 +301,7 @@ public class natBoxThread extends Thread {
                             e.printStackTrace();
                         }
                     } else {
-                        System.out.println("\n *Paquet dropped due to no available public adress*");
+                        System.out.println("\n *Paquet dropped due to no available public adress* \n");
                         p.setType(Type.ERROR);
                         System.out.println(p.toString());
                     }
@@ -322,10 +321,10 @@ public class natBoxThread extends Thread {
             String dPublic = p.getDestIP();
             if (dPublic.startsWith("192.168.1.")) {
                 String dPrivate = NatBox.getPrivateIP(dPublic);
-                System.out.println(NatBox.natTable);
+                // System.out.println(NatBox.natTable);
                 if (dPrivate == null) {
                     // drop Paquet ip not assigned
-                    System.out.println("\n *Paquet dropped due to public address not being assigned*");
+                    System.out.println("\n *Paquet dropped due to public address not being assigned* \n");
 
                     System.out.println(p.toString());
                 } else {
@@ -335,13 +334,13 @@ public class natBoxThread extends Thread {
                 }
             } else {
                 // drop Paquet
-                System.out.println("\n *Paquet dropped External-> External*");
+                System.out.println("\n *Paquet dropped External-> External* \n");
                 System.out.println(p.toString());
             }
 
         }
         if (!sent) {
-            System.out.println("\n *Paquet Failed to send, sending ICMP ERROR MSG*");
+            System.out.println("\n *Paquet Failed to send, sending ICMP ERROR MSG* \n ");
             Paquet newP = new Paquet(NatBox.natIp, clientIP, Type.ERROR, clientIP);
             NatBox.send(newP);
         }

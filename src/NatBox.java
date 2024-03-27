@@ -9,8 +9,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Creates a Server that acts as Internet and makes use of NAT to communicate
- * devices within a private network or across the internet
+ * Makes use of NAT to communicate clients within a private network or across the n
  */
 public class NatBox {
     private static ServerSocket serverSocket = null;
@@ -21,27 +20,18 @@ public class NatBox {
     static ArrayList<String> privatePool = new ArrayList<>();
     static HashMap<String, String> natTable = new HashMap<>();
 
-    /**
-     * @param port
+    /** Accepts connections and creates pool of both private and public ip addresses
+     * @param port - nat server port
      * @throws IOException
      */
     public NatBox(int port) throws IOException {
         serverSocket = new ServerSocket(port);// start server
-        System.out.println("Server started");
+        System.out.println("Nat Server started");
         natIp = "25.31.79.190";
-        System.out.println("NAT IP Address: " + natIp);// ??
+        System.out.println("NAT IP Address: " + natIp);
         String randomMacAddress = generateRandomMacAddress();
         System.out.println("NAT Mac Address: " + randomMacAddress);
-        /*
-         * Socket natSocket = new Socket(natIp, 5002);
-         * System.out.println("Flag 7");
-         * natBoxThread natThread = new natBoxThread(natSocket);
-         * System.out.println("Flag 8");
-         * natThread.start();
-         * System.out.println("Flag 9");
-         * clients.put(natIp, natThread);
-         */
-
+       
         createPool();
         createPrivatePool();
         Thread refresh = new ntRefresh(clients, 600);
@@ -114,8 +104,8 @@ public class NatBox {
         natTable.remove(ip);
     }
 
-    /**
-     * @return - natbox header with mac and ip address
+    /** communicates natbox mac with clients
+     * @return - natbox mac
      */
     public static String arp() {
         return natMac;
@@ -136,37 +126,44 @@ public class NatBox {
     }
 
     public static void main(String[] args) throws IOException {
-        /*
-         * MOVING 2 SIMULATOR
-         * try {// starts server locally
-         * new NatBox(5002);
-         * 
-         * } catch (IOException e) {
-         * throw new RuntimeException(e);
-         * }
-         */
+
     }
 
+    /** Maps private ip to public ip in the nat table
+     * @param ip - private ip
+     * @param publicIP - public ip
+     */
     public static void addEntry(String ip, String publicIP) {
         natTable.put(ip, publicIP);
     }
 
+    /** removes clients from connected clients
+     * @param clientIP - ip to be removed
+     * @param internal - tag of client
+     */
     public static synchronized void removeClient(String clientIP, boolean internal) {
         push(clientIP);// case disconnecte while connected
         clients.remove(clientIP);
     }
 
+    /** add new client to connected clients
+     * @param clientIP
+     * @param thread
+     */
     public static synchronized void addClient(String clientIP, natBoxThread thread) {
         clients.put(clientIP, thread);
     }
 
+    /** sends paquet
+     * @param p - paquet
+     * @return - success on sent
+     * @throws IOException
+     */
     public static boolean send(Paquet p) throws IOException {
-        System.out.println(p.toString());
         String ip = p.getDestIP();
         natBoxThread link = clients.get(ip);
         if (link != null) {
             boolean connected = link.isConnected();
-            // System.out.println("link is connected:" + connected);
             if (connected) {
                 return link.sendPaquet(p);
             }
@@ -174,6 +171,10 @@ public class NatBox {
         return false;
     }
 
+    /** translate public ip to private ip
+     * @param publicIp - public ip
+     * @return
+     */
     public static String getPrivateIP(String publicIp) {
         for (Entry<String, String> entry : natTable.entrySet()) {
 
@@ -188,6 +189,10 @@ public class NatBox {
 
     }
 
+    /** translate private to public
+     * @param privateIp - private ip
+     * @return
+     */
     public static String getPublicIp(String privateIp) {
         return natTable.get(privateIp);
 
@@ -217,7 +222,6 @@ class ntRefresh extends Thread {
             for (Entry<String, natBoxThread> entry : clients.entrySet()) {
                 if (Duration.between(entry.getValue().getLastUsed(), LocalTime.now()).toSeconds() > timeout) {
                     try {
-                        // System.out.println(clients.get(entry.getKey()));
                         entry.getValue().disconnect();
                     } catch (IOException e) {
                         // TODO Auto-generated catch block

@@ -1,10 +1,3 @@
-//1. Either be designated as an internal or external client, as discussed above.
-// 2. IP addresses should reflect clients’ status as either internal or external clients.
-// 3. Internal clients should use a minimal DHCP implementation to request an IP address.
-// 4. Every client must have a unique (simulated) MAC address.
-// 5. No GUI is required, only CLI (command-line interface) is necessary.
-// 6. The client must provide a reply for every paquet received (This is not the case with ICMP error
-//paquets). This may take the form of an ACK or a similar type of packet.
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -14,8 +7,9 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.Random;
 
-import javax.crypto.Mac;
-
+/**
+ * 
+ */
 public class Client {
     // Var Dec
     private static String MAC;
@@ -26,6 +20,9 @@ public class Client {
     static boolean connected;
 
     // Main
+    /**
+     * @param args
+     */
     public static void main(String[] args) {
         // Var dec
         if (args.length < 1) {
@@ -36,7 +33,7 @@ public class Client {
         Paquet p;
         // Initialise
         String mode = args[0];
-        System.out.println("Flag 4");
+  
         MAC = generateRandomMacAddress();
         if (mode.equals("external")) {
             IP = generateRandomIpAddress(false);
@@ -124,11 +121,17 @@ public class Client {
         System.out.println("Disconnected");
     }
 
+    /**
+     * @param var
+     */
     public static void setConnected(boolean var) {
         connected = var;
     }
 
     // Paquet Reciver
+    /**
+     * @return
+     */
     public static Paquet receive() {
         try {
             Paquet p = (Paquet) in.readObject();
@@ -157,8 +160,10 @@ public class Client {
     }
 
     // Packet sender
+    /**
+     * @param p
+     */
     public static void send(Paquet p) {
-        System.out.println(p.toString());
         try {
             out.writeObject(p);
             out.reset();
@@ -169,6 +174,9 @@ public class Client {
     }
 
     // copied from https://iqcode.com/code/java/random-mac-address-generator-java
+    /**
+     * @return
+     */
     private static String generateRandomMacAddress() {
         Random random = new Random();
         StringBuilder mac = new StringBuilder();
@@ -183,6 +191,10 @@ public class Client {
     }
 
     // copied from internet still need to check if doesnt violate any rules
+    /**
+     * @param internal
+     * @return
+     */
     private static String generateRandomIpAddress(boolean internal) {
         Random random = new Random();
         if (internal) {
