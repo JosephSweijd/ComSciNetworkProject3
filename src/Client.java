@@ -40,7 +40,7 @@ public class Client {
             IP = generateRandomIpAddress(false);
             System.out.println("IP adress:" + IP);
             try {
-                socket = new Socket("localhost", 5002);
+                socket = new Socket("localhost", 1234);
                 out = new ObjectOutputStream(socket.getOutputStream());
                 in = new ObjectInputStream(socket.getInputStream());
                 p = new Paquet(IP, null, Type.DHCP_REQUEST, null);
@@ -54,7 +54,7 @@ public class Client {
             IP = generateRandomIpAddress(true);
             try {
                 // Open Conneciton
-                socket = new Socket("localhost", 5002);
+                socket = new Socket("localhost", 1234);
                 out = new ObjectOutputStream(socket.getOutputStream());
                 in = new ObjectInputStream(socket.getInputStream());
                 p = new Paquet(IP, null, Type.DHCP_REQUEST, null);
@@ -74,9 +74,12 @@ public class Client {
             System.out.println("Incorrect usage: args 1 must be either \"internal\" or \"external\"");
             return;
         }
-        InnerClient iClient = new InnerClient(socket, in, out);
-        iClient.start();
+        // Listen for paquets
+        InnerClient iClient = new InnerClient();
+        Thread t = new Thread(iClient, "iClient");
+        t.start();
         connected = true;
+        // listen for inputs
         while (connected) {
             try {
                 input = reader.readLine();
@@ -102,6 +105,15 @@ public class Client {
                 e.printStackTrace();
             }
         }
+        try {
+            out.close();
+            in.close();
+            socket.close();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
         System.out.println("Disconnected");
     }
 
@@ -111,12 +123,16 @@ public class Client {
 
     // Paquet Reciver
     public static Paquet receive() {
-        Paquet p;
         try {
-            p = (Paquet) in.readObject();
-            send(new Paquet(IP, null, Type.ACK, null));
+            Paquet p = (Paquet) in.readObject();
+            Paquet newP = new Paquet(IP, null, Type.ACK, null);
+            send(newP);
             if (p.getType() == Type.ECHO_REQUEST) {
-                send(new Paquet(IP, p.getSourceIP(), Type.ECHO_REPLY, null));
+                newP = new Paquet(IP, p.getSourceIP(), Type.ECHO_REPLY, null);
+                send(newP);
+            }
+            if (p.getType() == Type.DISCONNECT) {
+                connected = false;
             }
             return p;
         } catch (IOException e) {
@@ -136,7 +152,7 @@ public class Client {
         System.out.println(p.toString());
         try {
             out.writeObject(p);
-            out.flush();
+            out.reset();
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -171,35 +187,29 @@ public class Client {
     }
 }
 
-class InnerClient extends Thread {
+class InnerClient implements Runnable {
+    /*
+     * Socket socket;
+     * ObjectInputStream in;
+     * ObjectOutputStream out;
+     */
 
-    static Socket socket;
-    static ObjectInputStream in;
-    static ObjectOutputStream out;
-    static Paquet p;
-
-    public InnerClient(Socket socket, ObjectInputStream in, ObjectOutputStream out) {
-        this.socket = socket;
-        this.in = in;
-        this.out = out;
+    public InnerClient() {
+        /*
+         * this.socket = socket;
+         * this.in = in;
+         * this.out = out;
+         */
     }
 
     @Override
     public void run() {
+        Paquet p;
         while (true) {
             p = Client.receive();
 
             System.out.println(p.toString());
             if (p.getType() == Type.DISCONNECT) {
-                try {
-                    Client.setConnected(false);
-                    out.close();
-                    in.close();
-                    socket.close();
-                } catch (IOException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
                 break;
             }
         }

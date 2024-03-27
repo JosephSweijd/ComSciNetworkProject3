@@ -9,7 +9,7 @@ public class Simulator {
 NatBox nBox = null;
     public static void main(String[] args) {
         try {// starts server locally
-            new NatBox(5002);
+            new NatBox(1234);
 
         } catch (IOException e) {
             throw new RuntimeException(e);

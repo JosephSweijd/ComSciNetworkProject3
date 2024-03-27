@@ -54,7 +54,7 @@ public class NatBox {
                 } catch (SocketException e) {
                     break;
                 }
-                Thread t = new natBoxThread(clientSocket);
+                Thread t = new natBoxThread(clientSocket,100);
                 t.start();
             } catch (IOException e) {
                 throw new RuntimeException(e);

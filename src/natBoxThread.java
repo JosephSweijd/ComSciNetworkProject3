@@ -1,4 +1,5 @@
 import java.net.*;
+import java.time.Duration;
 import java.time.LocalTime;
 import java.io.*;
 
@@ -10,15 +11,19 @@ public class natBoxThread extends Thread {
     private String clientIP;
     private LocalTime lastUsed;
     private boolean internal;
+    private boolean ack;
+    private boolean toself;
+    private int timeout;
 
     /*
      * Initializes the natBoxThread with client's socket and sets thread as active
      */
-    public natBoxThread(Socket clientSocket) throws IOException {
+    public natBoxThread(Socket clientSocket,int timeout) throws IOException {
         this.clientSocket = clientSocket;
         setStreams();
         isActive = true;
         lastUsed = LocalTime.now();
+        this.timeout = timeout;
 
     }
 
@@ -39,18 +44,28 @@ public class natBoxThread extends Thread {
      * Sends paquet to the client
      */
     public boolean sendPaquet(Paquet p) throws IOException {
-        Paquet newP = null;
+        ack = false;
         out.writeObject(p);
-        out.flush();
-        try {
-            newP = getPaquet();
-            System.out.println(newP.toString());
-            if (newP.getType() == Type.ACK){
+        out.reset();
+        if (toself){
+            Paquet newp;
+            try {
+                newp = getPaquet();
+                if (newp.getType() == Type.ACK) {
+                    System.out.println("Acknoleged");
+                    return true;
+                }
+            } catch (ClassNotFoundException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+        LocalTime sent = LocalTime.now();
+        while (Duration.between(sent, LocalTime.now()).toSeconds() < timeout) {
+            if (ack){
+                System.out.println("Acknoleged");
                 return true;
             }
-        } catch (ClassNotFoundException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
         }
         return false;
 
@@ -130,6 +145,7 @@ public class natBoxThread extends Thread {
     @Override
     public void run() {
         while (isActive) {
+            toself = false;
             Type pType = null;
             Paquet p = null;
             if (!clientSocket.isClosed()) {
@@ -150,11 +166,13 @@ public class natBoxThread extends Thread {
                     switch (pType) {
 
                         case DHCP_REQUEST:
+                        toself = true;
                             dhcp(p);
                             break;
                         case DHCP_RELEASE:
                             // update later
-                            NatBox.push(clientIP);
+                        toself = true;
+                        NatBox.push(clientIP);
                             break;
 
                         case ARP_REQUEST:
@@ -190,11 +208,16 @@ public class natBoxThread extends Thread {
 
                         case DISCONNECT:
                             try {
-                                disconnect();
+                        toself = true;
+                        disconnect();
                             } catch (IOException e) {
                                 // TODO Auto-generated catch block
                                 e.printStackTrace();
                             }
+                            break;
+
+                        case ACK:
+                            ack =true;
                             break;
 
                         default:
@@ -221,12 +244,13 @@ public class natBoxThread extends Thread {
     }
 
     private Paquet getPaquet() throws ClassNotFoundException {
-        System.out.println("Flag 1");
         // get Paquet from client
         try {
-            return (Paquet) in.readObject();
+            Paquet p = (Paquet) in.readObject();
+            return p;
         } catch (IOException e) {
-            e.printStackTrace();
+        System.out.println("Flag 1");
+        e.printStackTrace();
             return null;
         }
     }
