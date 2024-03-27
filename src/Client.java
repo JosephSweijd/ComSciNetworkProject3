@@ -33,7 +33,7 @@ public class Client {
         Paquet p;
         // Initialise
         String mode = args[0];
-  
+
         MAC = generateRandomMacAddress();
         if (mode.equals("external")) {
             IP = generateRandomIpAddress(false);
@@ -76,7 +76,7 @@ public class Client {
             return;
         }
         // Listen for paquets
-        InnerClient iClient = new InnerClient();
+        InnerClient iClient = new InnerClient(socket,in, out);
         Thread t = new Thread(iClient, "iClient");
         t.start();
         connected = true;
@@ -108,14 +108,6 @@ public class Client {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
-        }
-        try {
-            out.close();
-            in.close();
-            socket.close();
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
         }
 
         System.out.println("Disconnected");
@@ -209,18 +201,19 @@ public class Client {
 }
 
 class InnerClient implements Runnable {
-    /*
-     * Socket socket;
-     * ObjectInputStream in;
-     * ObjectOutputStream out;
-     */
 
-    public InnerClient() {
-        /*
-         * this.socket = socket;
-         * this.in = in;
-         * this.out = out;
-         */
+    Socket socket;
+    ObjectInputStream in;
+    ObjectOutputStream out;
+
+    public InnerClient(Socket socket,
+            ObjectInputStream in,
+            ObjectOutputStream out) {
+
+        this.socket = socket;
+        this.in = in;
+        this.out = out;
+
     }
 
     @Override
@@ -233,6 +226,15 @@ class InnerClient implements Runnable {
             if (p.getType() == Type.DISCONNECT) {
                 break;
             }
+        }
+
+        try {
+            out.close();
+            in.close();
+            socket.close();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
         System.out.println("Disconnected");
 
