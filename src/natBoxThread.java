@@ -233,8 +233,10 @@ public class natBoxThread extends Thread {
     private void arp(Paquet p) {
         String ip = p.getSourceIP();
         p.setSourceIP(p.getDestIP());
+        p.setDestMac(p.getSourceMac());
         p.setDestIP(ip);
         p.setType(Type.ARP_REPLY);
+        p.setSourceMac(NatBox.natMac);
         try {
             NatBox.send(p);
         } catch (IOException e) {
@@ -282,6 +284,7 @@ public class natBoxThread extends Thread {
                 if (publicIp == null) {
                     Paquet rPaquet = p;
                     rPaquet.setDestIP(NatBox.natIp);
+                    rPaquet.setDestMac(NatBox.natMac);
                     rPaquet.setType(Type.DHCP_REQUEST);
                     try {
                         sent =  NatBox.send(rPaquet);

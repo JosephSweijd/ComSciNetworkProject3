@@ -63,5 +63,10 @@ public class Paquet implements Serializable{
         return "Paquet [type=" + type + ", sourceIP=" + sourceIP + ", destIP=" + destIP + ", Payload=" + Payload
                 + ", sourceMac=" + sourceMac + ", destMac=" + destMac + "]";
     }
+
+    public String getSourceMac() {
+        return sourceMac;
+        
+    }
     
 }

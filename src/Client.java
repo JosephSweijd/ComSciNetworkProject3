@@ -14,6 +14,8 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.Random;
 
+import javax.crypto.Mac;
+
 public class Client {
     // Var Dec
     private static String MAC;
@@ -44,6 +46,7 @@ public class Client {
                 out = new ObjectOutputStream(socket.getOutputStream());
                 in = new ObjectInputStream(socket.getInputStream());
                 p = new Paquet(IP, null, Type.DHCP_REQUEST, null);
+                p.setSourceMac(MAC);
                 send(p);
                 p = receive();
             } catch (IOException e) {
@@ -58,6 +61,7 @@ public class Client {
                 out = new ObjectOutputStream(socket.getOutputStream());
                 in = new ObjectInputStream(socket.getInputStream());
                 p = new Paquet(IP, null, Type.DHCP_REQUEST, null);
+                p.setSourceMac(MAC);
                 send(p);
                 p = receive();
                 IP = p.getPayload();
@@ -86,16 +90,19 @@ public class Client {
                 if (connected) {
                     if (input.equals("disconnect")) {
                         p = new Paquet(IP, null, Type.DISCONNECT, input);
+                        p.setSourceMac(MAC);
                         send(p);
                         break;
                     } else if (input.startsWith("echo")) {
                         destIP = input.substring(5);
                         p = new Paquet(IP, destIP, Type.ECHO_REQUEST, null);
+                        p.setSourceMac(MAC);
                         send(p);
                     } else {
                         destIP = input.substring(0, input.indexOf(" "));
                         msg = input.substring(input.indexOf(" "));
                         p = new Paquet(IP, destIP, Type.TCP, msg);
+                        p.setSourceMac(MAC);
                         send(p);
                     }
                     System.out.println(input);
@@ -126,9 +133,11 @@ public class Client {
         try {
             Paquet p = (Paquet) in.readObject();
             Paquet newP = new Paquet(IP, null, Type.ACK, null);
+            newP.setSourceMac(MAC);
             send(newP);
             if (p.getType() == Type.ECHO_REQUEST) {
                 newP = new Paquet(IP, p.getSourceIP(), Type.ECHO_REPLY, null);
+                newP.setSourceMac(MAC);
                 send(newP);
             }
             if (p.getType() == Type.DISCONNECT) {
